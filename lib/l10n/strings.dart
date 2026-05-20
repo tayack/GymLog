@@ -108,6 +108,7 @@ class AppStrings {
   String get selectReps   => _ja ? '回数を選択' : 'Select Reps';
   String get selectSets   => _ja ? 'セット数を選択' : 'Select Sets';
   String get done         => _ja ? '決定' : 'Done';
+  String get prLabel      => _ja ? '最高記録' : 'Best';
 
   // Timer notifications
   String get notifTimerBody   => _ja ? 'インターバル終了！次のセットへ' : 'Interval done! Next set.';

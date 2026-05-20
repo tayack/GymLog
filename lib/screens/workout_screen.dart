@@ -659,6 +659,11 @@ class _IntervalTimerSheetState extends State<_IntervalTimerSheet> {
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(),
     ));
+    // Android 13+ requires runtime permission for notifications
+    await _notif
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
   }
 
   void _startTimer() {

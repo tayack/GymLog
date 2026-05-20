@@ -135,8 +135,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           _tCell(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 10),
-                            child: const Text('PR',
-                                style: TextStyle(
+                            child: Text(s.prLabel,
+                                style: const TextStyle(
                                     fontSize: 9,
                                     color: kTextMuted,
                                     letterSpacing: 2)),
