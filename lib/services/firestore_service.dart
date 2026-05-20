@@ -12,6 +12,8 @@ class FirestoreService {
       _db.collection('users').doc(_uid).collection('menus');
   CollectionReference get _workouts =>
       _db.collection('users').doc(_uid).collection('workouts');
+  CollectionReference get _prs =>
+      _db.collection('users').doc(_uid).collection('prs');
 
   // --- Menus ---
   Stream<List<MenuModel>> menusStream() => _menus.snapshots().map(
@@ -34,7 +36,51 @@ class FirestoreService {
       .snapshots()
       .map((s) => s.docs.map((d) => WorkoutModel.fromDoc(d)).toList());
 
-  Future<void> saveWorkout(WorkoutModel workout) => _workouts.add(workout.toMap());
+  // --- PRs ---
+  Stream<Map<String, SetEntry>> prsStream() => _prs.snapshots().map(
+        (s) => {
+          for (final doc in s.docs)
+            doc.id: SetEntry(
+              weight: ((doc.data() as Map<String, dynamic>)['weight'] as num)
+                  .toDouble(),
+              reps: ((doc.data() as Map<String, dynamic>)['reps'] as num)
+                  .toInt(),
+            )
+        },
+      );
+
+  Future<void> _updatePRsForWorkout(WorkoutModel workout) async {
+    for (final ex in workout.sets) {
+      if (ex.entries.isEmpty) continue;
+      final best = ex.entries.reduce((a, b) =>
+          a.weight > b.weight
+              ? a
+              : (a.weight == b.weight && a.reps > b.reps ? a : b));
+      final prRef = _prs.doc(ex.exercise);
+      final snap = await prRef.get();
+      if (!snap.exists) {
+        await prRef.set({'weight': best.weight, 'reps': best.reps});
+      } else {
+        final data = snap.data() as Map<String, dynamic>;
+        final w = (data['weight'] as num).toDouble();
+        final r = (data['reps'] as num).toInt();
+        if (best.weight > w || (best.weight == w && best.reps > r)) {
+          await prRef.set({'weight': best.weight, 'reps': best.reps});
+        }
+      }
+    }
+  }
+
+  // --- Workouts ---
+  Future<void> saveWorkout(WorkoutModel workout) async {
+    await _workouts.add(workout.toMap());
+    await _updatePRsForWorkout(workout);
+  }
+
+  Future<void> updateWorkout(WorkoutModel workout) =>
+      _workouts.doc(workout.id).set(workout.toMap());
+
+  Future<void> deleteWorkout(String id) => _workouts.doc(id).delete();
 
   // アカウント削除前にFirestore上のデータを全消去する
   Future<void> deleteAllUserData() async {
@@ -44,6 +90,10 @@ class FirestoreService {
     }
     final workoutSnap = await _workouts.get();
     for (final doc in workoutSnap.docs) {
+      await doc.reference.delete();
+    }
+    final prSnap = await _prs.get();
+    for (final doc in prSnap.docs) {
       await doc.reference.delete();
     }
     await _db.collection('users').doc(_uid).delete();

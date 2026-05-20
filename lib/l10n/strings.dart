@@ -4,7 +4,7 @@ class AppStrings {
   bool get _ja => languageCode == 'ja';
 
   // Tabs
-  String get tabToday    => _ja ? '今日'       : 'Today';
+  String get tabToday    => _ja ? '記録'       : 'Log';
   String get tabTimer    => _ja ? 'タイマー'   : 'Timer';
   String get tabHistory  => _ja ? '履歴'        : 'History';
   String get tabRoutines => _ja ? 'ルーティン' : 'Routines';
@@ -29,19 +29,33 @@ class AppStrings {
   String get addExercisePlaceholder => _ja ? '種目を追加...' : 'Add exercise...';
   String get addSet         => _ja ? '+ セット追加' : '+ Add set';
   String get prevLabel      => _ja ? '前回'      : 'Last';
-  String get workoutSaved   => _ja ? 'ワークアウト保存しました 💪' : 'Workout saved 💪';
+  String get workoutSaved        => _ja ? 'ワークアウト保存しました 💪' : 'Workout saved 💪';
+  String get workoutCompleteTitle => _ja ? 'お疲れ様でした！💪' : 'Great work! 💪';
+  String get workoutCompleteBody  => _ja ? 'トレーニングを完了して保存しますか？' : 'Save and finish your workout?';
+  String get sharePrompt          => _ja ? 'シェアしますか？' : 'Share your workout?';
+  String get cancelWorkoutTitle  => _ja ? 'ワークアウトを終了' : 'End Workout';
+  String get cancelWorkoutBody   => _ja ? '記録は保存されません。終了しますか？' : 'Progress will not be saved. End workout?';
+  String get discard             => _ja ? '終了する' : 'End';
 
   // Timer
-  String get intervalTimer  => 'INTERVAL TIMER';
+  String get intervalTimer       => 'INTERVAL TIMER';
+  String get intervalDefault     => _ja ? 'インターバルタイマー デフォルト' : 'Interval Timer Default';
+  String get intervalDefaultHint => _ja
+      ? 'ルーティン画面でデフォルト秒数を変更できます'
+      : 'Change default duration in Routines';
   String get ready          => 'READY';
   String get resting        => 'RESTING...';
   String get complete       => 'COMPLETE!';
   String get timerNote      => _ja ? '終了時にバイブ＋通知でお知らせします' : 'Vibration + notification when done';
 
   // History
-  String get history        => 'HISTORY';
-  String get noHistory      => _ja ? 'ワークアウト履歴がありません' : 'No workout history yet';
-  String get exerciseCol    => _ja ? '種目' : 'Exercise';
+  String get history               => 'HISTORY';
+  String get noHistory             => _ja ? 'ワークアウト履歴がありません' : 'No workout history yet';
+  String get exerciseCol           => _ja ? '種目' : 'Exercise';
+  String get editWorkout           => _ja ? 'ワークアウトを編集' : 'Edit Workout';
+  String get deleteWorkout         => _ja ? 'ワークアウトを削除' : 'Delete Workout';
+  String get deleteWorkoutConfirm  => _ja ? 'このワークアウトを削除しますか？' : 'Delete this workout?';
+  String get workoutUpdated        => _ja ? 'ワークアウトを更新しました' : 'Workout updated';
 
   // Routines
   String get routinesDesc   => _ja
@@ -69,6 +83,10 @@ class AppStrings {
   String get linkGoogle       => _ja ? 'Googleアカウントと連携'      : 'Link Google Account';
   String get linkGoogleSub    => _ja ? 'データを引き継いでアカウント登録' : 'Keep data and create account';
   String get logout           => _ja ? 'ログアウト'                  : 'Sign Out';
+  String get logoutGuestSub   => _ja ? 'ゲストデータにアクセスできなくなります' : 'Guest data will become inaccessible';
+  String get logoutGuestBody  => _ja
+      ? 'ログアウトするとゲストデータにアクセスできなくなります。\nデータを残したい場合はGoogleアカウントと連携してください。'
+      : 'Logging out will make your guest data inaccessible.\nLink a Google account to keep your data.';
   String get deleteAccount    => _ja ? 'アカウントとデータを削除'    : 'Delete Account & Data';
   String get deleteAccountSub => _ja ? 'すべてのデータが完全に削除されます' : 'All data will be permanently deleted';
   String get deleteAccountTitle => _ja ? 'アカウントを削除'          : 'Delete Account';
@@ -79,6 +97,7 @@ class AppStrings {
   String get japanese         => '日本語';
   String get english          => 'English';
   String get guestBadge       => 'GUEST';
+  String get account          => _ja ? 'アカウント' : 'Account';
   String get linkedGoogle     => _ja ? 'Googleアカウントと連携しました' : 'Linked to Google Account';
   String get deleteFailed     => _ja
       ? '削除失敗。再ログインして再試行してください'

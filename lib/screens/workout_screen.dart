@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:vibration/vibration.dart';
 import '../l10n/exercises.dart';
 import '../l10n/strings.dart';
 import '../models/menu_model.dart';
@@ -48,6 +51,34 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _sets = [];
   });
 
+  Future<void> _cancelWorkout() async {
+    final s = _s;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text(s.cancelWorkoutTitle,
+            style: const TextStyle(color: kText)),
+        content: Text(s.cancelWorkoutBody,
+            style: const TextStyle(
+                color: kTextDim, fontSize: 13, height: 1.6)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: kRed),
+            child: Text(s.discard),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      setState(() { _selectedMenu = null; _sets = []; });
+    }
+  }
+
   void _addExercise(String name) async {
     if (name.trim().isEmpty) return;
     final last = await _fs.getLastEntryForExercise(name.trim());
@@ -65,14 +96,36 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _sets[exIdx].entries.add(SetEntry(weight: last.weight, reps: last.reps));
   });
 
-  void _toggleDone(int exIdx, int entryIdx) {
+  Future<void> _toggleDone(int exIdx, int entryIdx) async {
     final wasDone = _sets[exIdx].entries[entryIdx].done;
     setState(() {
       final e = _sets[exIdx].entries[entryIdx];
       _sets[exIdx].entries[entryIdx] = e.copyWith(done: !e.done);
     });
-    if (!wasDone) widget.onTabChange(1);
+    if (!wasDone) {
+      final lp = context.read<LocaleProvider>();
+      final s = lp.s;
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: kSurface,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
+        builder: (_) => _IntervalTimerSheet(
+          exerciseName: _sets[exIdx].exercise,
+          initialSeconds: lp.intervalDefault,
+          notifBody: s.notifTimerBody,
+          notifChannelName: s.notifChannelName,
+          notifChannelDesc: s.notifChannelDesc,
+        ),
+      );
+      if (mounted && _allDone()) await _showCompletionFlow();
+    }
   }
+
+  bool _allDone() =>
+      _sets.isNotEmpty &&
+      _sets.every((ex) => ex.entries.isNotEmpty && ex.entries.every((e) => e.done));
 
   void _updateEntry(int exIdx, int entryIdx, {double? weight, int? reps}) =>
       setState(() {
@@ -80,7 +133,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         _sets[exIdx].entries[entryIdx] = e.copyWith(weight: weight, reps: reps);
       });
 
-  Future<void> _finish() async {
+  Future<void> _saveWorkout() async {
     setState(() => _saving = true);
     final workout = WorkoutModel(
       date: DateTime.now(),
@@ -95,15 +148,68 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
     await _fs.saveWorkout(workout);
     setState(() { _saving = false; _selectedMenu = null; _sets = []; });
+  }
+
+  Future<void> _finish() async {
+    await _saveWorkout();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(_s.workoutSaved), backgroundColor: kRed,
           duration: const Duration(seconds: 2)));
-      widget.onTabChange(2);
+      widget.onTabChange(1);
     }
   }
 
-  void _share() {
+  Future<void> _showCompletionFlow() async {
+    if (!mounted) return;
+    final s = _s;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text(s.workoutCompleteTitle,
+            style: const TextStyle(color: kText)),
+        content: Text(s.workoutCompleteBody,
+            style: const TextStyle(color: kTextDim, fontSize: 13, height: 1.6)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: kRed),
+            child: Text(s.save),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final shareText = _buildShareText();
+    await _saveWorkout();
+    if (!mounted) return;
+    final doShare = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text(s.sharePrompt,
+            style: const TextStyle(color: kText)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: kRed),
+            child: Text(s.share),
+          ),
+        ],
+      ),
+    );
+    if (doShare == true) Share.share(shareText);
+    if (mounted) widget.onTabChange(1);
+  }
+
+  String _buildShareText() {
     final s = _s;
     final today = DateFormat('yyyy/MM/dd(E)', s.languageCode).format(DateTime.now());
     final lines = [today];
@@ -115,8 +221,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final vol = _sets.expand((ex) => ex.entries.where((e) => e.done))
         .fold(0.0, (acc, e) => acc + e.weight * e.reps);
     lines.add('${s.languageCode == 'ja' ? '総ボリューム' : 'Total Volume'}: ${NumberFormat('#,###').format(vol.toInt())}kg');
-    Share.share(lines.join('\n'));
+    return lines.join('\n');
   }
+
+  void _share() => Share.share(_buildShareText());
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +273,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 fontSize: 11, color: kTextDim, height: 1.6)),
         const SizedBox(height: 12),
         GestureDetector(
-          onTap: () => widget.onTabChange(3),
+          onTap: () => widget.onTabChange(2),
           child: Text(s.goToRoutines,
               style: const TextStyle(
                   fontSize: 12, color: kRed, letterSpacing: 1)),
@@ -178,8 +286,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final s = _s;
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
         child: Row(children: [
+          IconButton(
+            icon: const Icon(Icons.close, color: kTextDim, size: 20),
+            onPressed: _cancelWorkout,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          ),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('TODAY',
                 style: TextStyle(fontSize: 9, color: kTextMuted, letterSpacing: 3)),
@@ -487,6 +601,227 @@ class _DashedButton extends StatelessWidget {
           child: Text(label,
               style: const TextStyle(
                   color: kTextMuted, fontSize: 12, letterSpacing: 2)),
+        ),
+      ),
+    );
+  }
+}
+
+// ── インターバルタイマーシート ─────────────────────────────────────────────────
+
+class _IntervalTimerSheet extends StatefulWidget {
+  final String exerciseName;
+  final int initialSeconds;
+  final String notifBody;
+  final String notifChannelName;
+  final String notifChannelDesc;
+
+  const _IntervalTimerSheet({
+    required this.exerciseName,
+    required this.initialSeconds,
+    required this.notifBody,
+    required this.notifChannelName,
+    required this.notifChannelDesc,
+  });
+
+  @override
+  State<_IntervalTimerSheet> createState() => _IntervalTimerSheetState();
+}
+
+String _fmtPreset(int secs) {
+  final m = secs ~/ 60;
+  final s = secs % 60;
+  if (m == 0) return '${s}s';
+  if (s == 0) return '${m}m';
+  return '${m}m${s}s';
+}
+
+class _IntervalTimerSheetState extends State<_IntervalTimerSheet> {
+  static const _presets = [30, 60, 90, 120, 150, 180];
+  late int _total;
+  late int _remaining;
+  bool _done = false;
+  Timer? _timer;
+
+  final _notif = FlutterLocalNotificationsPlugin();
+
+  @override
+  void initState() {
+    super.initState();
+    _total = widget.initialSeconds;
+    _remaining = widget.initialSeconds;
+    _initNotif();
+    _startTimer();
+  }
+
+  Future<void> _initNotif() async {
+    await _notif.initialize(const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    ));
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _done = false;
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      setState(() {
+        if (_remaining > 0) {
+          _remaining--;
+        } else {
+          _done = true;
+          t.cancel();
+          _onComplete();
+        }
+      });
+    });
+  }
+
+  void _selectPreset(int secs) {
+    _timer?.cancel();
+    setState(() { _total = secs; _remaining = secs; _done = false; });
+    _startTimer();
+  }
+
+  Future<void> _onComplete() async {
+    Vibration.vibrate(pattern: [0, 400, 100, 400]);
+    await _notif.show(
+      1,
+      'GYMLOG',
+      widget.notifBody,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'timer_channel',
+          widget.notifChannelName,
+          channelDescription: widget.notifChannelDesc,
+          importance: Importance.high,
+          priority: Priority.high,
+          // public visibility ensures wearables (WearOS / Fitbit / Galaxy Watch)
+          // receive the mirrored notification via Android notification bridging
+          visibility: NotificationVisibility.public,
+          enableVibration: true,
+          playSound: true,
+          ticker: widget.notifBody,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _fmt(int secs) =>
+      '${(secs ~/ 60).toString().padLeft(2, '0')}:${(secs % 60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _total > 0 ? _remaining / _total : 0.0;
+    final s = context.read<LocaleProvider>().s;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: kBorderDim, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 16),
+            Text(s.intervalTimer,
+                style: const TextStyle(
+                    fontSize: 11, color: kRed, letterSpacing: 3,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(widget.exerciseName.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 10, color: kTextMuted, letterSpacing: 2),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 130,
+              height: 130,
+              child: Stack(alignment: Alignment.center, children: [
+                SizedBox(
+                  width: 130,
+                  height: 130,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 7,
+                    backgroundColor: const Color(0xFF1A1A1F),
+                    valueColor: AlwaysStoppedAnimation(
+                        _done ? const Color(0xFF444444) : kRed),
+                  ),
+                ),
+                Text(
+                  _fmt(_remaining),
+                  style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: _done ? kTextDim : kText,
+                      letterSpacing: 3),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: _presets.map((p) {
+                final selected = _total == p;
+                return GestureDetector(
+                  onTap: () => _selectPreset(p),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 100),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selected ? kRed : Colors.transparent,
+                      border:
+                          Border.all(color: selected ? kRed : kBorderDim),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text(
+                      _fmtPreset(p),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: selected ? Colors.white : kTextMuted,
+                          letterSpacing: 1),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            Text(s.intervalDefaultHint,
+                style: const TextStyle(
+                    fontSize: 9, color: kTextMuted, letterSpacing: 0.5),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: kTextMuted,
+                minimumSize: const Size(double.infinity, 40),
+              ),
+              child: Text(
+                _done ? 'OK' : 'SKIP',
+                style: const TextStyle(fontSize: 11, letterSpacing: 2),
+              ),
+            ),
+          ],
         ),
       ),
     );

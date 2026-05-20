@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GYMLOG — シンプルな筋トレ記録アプリ</title>
+  <meta name="description" content="記録すれば、強くなれる。シンプルな筋トレ記録アプリ GYMLOG。ルーティン管理・インターバルタイマー・PR自動更新。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #0D0D0F;
+      --surface:    #161619;
+      --border:     #1E1E22;
+      --border-dim: #252528;
+      --red:        #E63946;
+      --text:       #E2E2E2;
+      --text-dim:   #888888;
+      --text-muted: #444444;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .mono { font-family: 'Space Mono', monospace; }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(13,13,15,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 4px;
+      color: var(--red);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color .2s;
+    }
+
+    .nav-links a:hover { color: var(--red); }
+
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+    }
+
+    /* ── Sections ── */
+    section { padding: 96px 24px; max-width: 900px; margin: 0 auto; }
+
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    /* ── Hero ── */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-top: 80px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .hero-eyebrow {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: var(--red);
+      margin-bottom: 20px;
+    }
+
+    .hero-title {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(42px, 10vw, 88px);
+      font-weight: 700;
+      letter-spacing: 8px;
+      color: var(--red);
+      line-height: 1;
+      margin-bottom: 28px;
+    }
+
+    .hero-tagline {
+      font-size: clamp(20px, 4vw, 28px);
+      font-weight: 300;
+      letter-spacing: 2px;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    .hero-desc {
+      font-size: 14px;
+      color: var(--text-dim);
+      max-width: 480px;
+      line-height: 1.8;
+      margin-bottom: 48px;
+    }
+
+    .btn {
+      display: inline-block;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 3px;
+      border: none;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s;
+    }
+
+    .btn:hover { opacity: .85; transform: translateY(-1px); }
+
+    .btn-primary { background: var(--red); color: #fff; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid var(--border-dim);
+      margin-left: 12px;
+    }
+
+    .btn-outline:hover { border-color: var(--text-dim); color: var(--text); }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 6px 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      margin-top: 40px;
+    }
+
+    .hero-badge span { color: var(--red); }
+
+    /* ── Mockup ── */
+    .phone-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: 64px;
+    }
+
+    .phone {
+      width: 220px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0,0,0,.6);
+      position: relative;
+    }
+
+    .phone::before {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin: 12px auto 0;
+    }
+
+    .phone-screen {
+      padding: 16px 14px;
+    }
+
+    .phone-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .phone-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--red);
+      margin-bottom: 14px;
+    }
+
+    .phone-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+
+    .phone-card-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--red);
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+
+    .phone-card-sub {
+      font-size: 9px;
+      color: var(--text-dim);
+    }
+
+    .phone-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .phone-row:last-child { border-bottom: none; }
+
+    .phone-row-label {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .phone-row-val {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .phone-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--red);
+      background: var(--red);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .phone-dot-empty {
+      background: transparent;
+    }
+
+    .phone-nav {
+      display: flex;
+      border-top: 1px solid var(--border);
+      padding: 8px 0;
+      margin: 8px -14px -16px;
+    }
+
+    .phone-nav-item {
+      flex: 1;
+      text-align: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 7px;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .phone-nav-item.active { color: var(--red); }
+
+    /* ── Features ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 32px;
+    }
+
+    .feature-item {
+      background: var(--surface);
+      padding: 28px 24px;
+      transition: background .2s;
+    }
+
+    .feature-item:hover { background: #1a1a1e; }
+
+    .feature-icon {
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+
+    .feature-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .feature-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    /* ── Privacy ── */
+    #privacy h2 {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(18px, 4vw, 26px);
+      letter-spacing: 4px;
+      color: var(--text);
+      margin-bottom: 32px;
+    }
+
+    .privacy-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 28px;
+      margin-bottom: 16px;
+    }
+
+    .privacy-block h3 {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--red);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .privacy-block p, .privacy-block li {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.8;
+    }
+
+    .privacy-block ul {
+      padding-left: 20px;
+      margin-top: 8px;
+    }
+
+    .privacy-block li { margin-bottom: 4px; }
+
+    .privacy-block a {
+      color: var(--red);
+      text-decoration: none;
+    }
+
+    .privacy-block a:hover { text-decoration: underline; }
+
+    .privacy-updated {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      margin-bottom: 24px;
+    }
+
+    /* ── Contact ── */
+    #contact h2 {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(18px, 4vw, 26px);
+      letter-spacing: 4px;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    .contact-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 32px;
+    }
+
+    .form-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    /*
+      Google フォームの埋め込み:
+      1. Google フォーム (forms.google.com) でフォームを作成
+      2. 送信 > リンクアイコン(埋め込み)をクリック
+      3. 下の iframe の src を実際のフォームURLに変更:
+         https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform?embedded=true
+    */
+    .form-wrap iframe {
+      width: 100%;
+      min-height: 520px;
+      border: none;
+      display: block;
+      background: var(--surface);
+      /* Google フォームのデフォルト背景を上書き */
+      filter: invert(1) hue-rotate(180deg);
+    }
+
+    /* フォームがまだ設定されていない場合のプレースホルダー */
+    .form-placeholder {
+      padding: 60px 40px;
+      text-align: center;
+    }
+
+    .form-placeholder p {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .form-placeholder a {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--red);
+      text-decoration: none;
+      border: 1px solid var(--red);
+      padding: 10px 20px;
+      border-radius: 3px;
+      display: inline-block;
+      letter-spacing: 1px;
+    }
+
+    .form-placeholder a:hover { background: rgba(230,57,70,.08); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+    }
+
+    .footer-logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--red);
+      margin-bottom: 12px;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      list-style: none;
+      margin-bottom: 16px;
+    }
+
+    .footer-links a {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+
+    .footer-links a:hover { color: var(--text-dim); }
+
+    .footer-copy {
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    /* ── Scroll indicator ── */
+    .scroll-line {
+      position: fixed;
+      top: 0; left: 0;
+      height: 2px;
+      background: var(--red);
+      z-index: 200;
+      transition: width .1s;
+    }
+
+    /* ── Responsive tweaks ── */
+    @media (max-width: 600px) {
+      section { padding: 72px 20px; }
+      .hero-title { letter-spacing: 4px; }
+      .btn-outline { margin-left: 0; margin-top: 10px; }
+      .privacy-block { padding: 20px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="scroll-line" id="scrollLine"></div>
+
+  <!-- Navigation -->
+  <nav>
+    <a class="nav-logo" href="#hero">GYMLOG</a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#privacy">Privacy</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero -->
+  <section id="hero">
+    <p class="hero-eyebrow">// FITNESS TRACKER</p>
+    <h1 class="hero-title">GYMLOG</h1>
+    <p class="hero-tagline">記録すれば、強くなれる。</p>
+    <p class="hero-desc">
+      シンプルで使いやすい筋トレ記録アプリ。<br>
+      ルーティン管理、インターバルタイマー、PR自動更新—<br>
+      トレーニングに集中するためのすべてが揃っています。
+    </p>
+    <div>
+      <!-- Google Play リンクを取得後、href を更新してください -->
+      <a href="#features" class="btn btn-primary mono">アプリの機能を見る</a>
+      <a href="#contact" class="btn btn-outline mono">お問い合わせ</a>
+    </div>
+    <div class="hero-badge mono">
+      <span>●</span> Android 対応 &nbsp;·&nbsp; 無料
+    </div>
+
+    <!-- Phone mockup -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-screen">
+          <p class="phone-label">TODAY</p>
+          <p class="phone-title">PUSH A</p>
+
+          <div class="phone-card">
+            <p class="phone-card-title">ベンチプレス</p>
+            <p class="phone-card-sub">前回 80kg × 8</p>
+          </div>
+
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 12px;margin-bottom:8px;">
+            <div class="phone-row">
+              <span class="phone-row-label">#1 &nbsp; 80kg × 8</span>
+              <div class="phone-dot" style="width:18px;height:18px;">
+                <svg width="9" height="9" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div class="phone-row">
+              <span class="phone-row-label">#2 &nbsp; 80kg × 8</span>
+              <div class="phone-dot" style="width:18px;height:18px;">
+                <svg width="9" height="9" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div class="phone-row">
+              <span class="phone-row-label">#3 &nbsp; 80kg × 8</span>
+              <div class="phone-dot phone-dot-empty" style="width:18px;height:18px;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-nav">
+          <div class="phone-nav-item active">記録</div>
+          <div class="phone-nav-item">履歴</div>
+          <div class="phone-nav-item">ルーティン</div>
+          <div class="phone-nav-item">設定</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Features -->
+  <section id="features">
+    <p class="section-label">Features</p>
+    <div class="features-grid">
+      <div class="feature-item">
+        <div class="feature-icon">📋</div>
+        <p class="feature-title">ルーティン管理</p>
+        <p class="feature-desc">よく行うトレーニングをテンプレート保存。開始時に選ぶだけで、前回の重量と回数が自動入力されます。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">⏱</div>
+        <p class="feature-title">インターバルタイマー</p>
+        <p class="feature-desc">セット完了と同時にタイマーが自動スタート。30秒〜3分のプリセット対応。終了時バイブ＋通知でお知らせ。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🏆</div>
+        <p class="feature-title">PR自動更新</p>
+        <p class="feature-desc">種目ごとの最高重量×回数を自動で記録・更新。履歴テーブルで一目で確認できます。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📊</div>
+        <p class="feature-title">履歴テーブル</p>
+        <p class="feature-desc">種目と日付のクロス集計表で進捗を可視化。記録の編集・削除も簡単に行えます。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">☁️</div>
+        <p class="feature-title">クラウド同期</p>
+        <p class="feature-desc">Googleアカウントでログインすれば、データがクラウドに自動保存。機種変更後もそのまま引き継げます。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📱</div>
+        <p class="feature-title">ゲストモード</p>
+        <p class="feature-desc">アカウント登録なしで今すぐ使い始められます。あとでGoogleアカウントと連携してデータを引き継ぐことも可能。</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Privacy Policy -->
+  <section id="privacy">
+    <p class="section-label">Legal</p>
+    <h2>プライバシーポリシー</h2>
+    <p class="privacy-updated mono">LAST UPDATED: 2026-05-20</p>
+
+    <div class="privacy-block">
+      <h3>はじめに</h3>
+      <p>本プライバシーポリシーは、GymLog（以下「本アプリ」）における個人情報の取り扱いについて説明するものです。本アプリをご利用になることで、本ポリシーに同意したものとみなします。</p>
+    </div>
+
+    <div class="privacy-block">
+      <h3>収集する情報</h3>
+      <p>本アプリは以下の情報を収集・保存します：</p>
+      <ul>
+        <li>ワークアウト記録（種目名、重量、回数、実施日時）</li>
+        <li>ルーティン（テンプレート）データ</li>
+        <li>PR（自己最高記録）データ</li>
+        <li>Googleアカウントでログインした場合：メールアドレス、表示名、プロフィール画像URL</li>
+        <li>匿名ログインの場合：Firebaseが発行する匿名UID</li>
+        <li>アプリ設定（言語設定、タイマーデフォルト秒数）</li>
+      </ul>
+    </div>
+
+    <div class="privacy-block">
+      <h3>情報の利用目的</h3>
+      <p>収集した情報は以下の目的でのみ使用します：</p>
+      <ul>
+        <li>ワークアウト記録・ルーティン・PRの保存および表示</li>
+        <li>前回の記録を次のワークアウトに自動入力する機能の提供</li>
+        <li>複数端末間でのデータ同期（Googleログイン時）</li>
+        <li>アプリの改善および不具合調査</li>
+      </ul>
+      <p style="margin-top:10px;">収集した情報を第三者へ販売することは一切ありません。</p>
+    </div>
+
+    <div class="privacy-block">
+      <h3>第三者サービス</h3>
+      <p>本アプリは以下の第三者サービスを利用しています：</p>
+      <ul>
+        <li>
+          <strong style="color:var(--text);">Firebase (Google LLC)</strong><br>
+          ユーザー認証（Firebase Authentication）およびデータベース（Cloud Firestore）の提供に使用します。
+          <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Firebase プライバシーポリシー</a>
+        </li>
+        <li style="margin-top:10px;">
+          <strong style="color:var(--text);">Google Sign-In (Google LLC)</strong><br>
+          Googleアカウントでのログイン機能に使用します。
+          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google プライバシーポリシー</a>
+        </li>
+        <li style="margin-top:10px;">
+          <strong style="color:var(--text);">Google AdMob (Google LLC)</strong><br>
+          アプリ内広告の配信に使用します。AdMobは広告のパーソナライズのために端末識別子等を収集することがあります。
+          <a href="https://support.google.com/admob/answer/6128543" target="_blank" rel="noopener">AdMob プライバシーポリシー</a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="privacy-block">
+      <h3>データの保存と保持期間</h3>
+      <p>ワークアウトデータはGoogle Cloud（Firebase）のサーバーに暗号化された状態で保存されます。アプリを削除してもクラウド上のデータは保持されます。アプリ設定（言語・タイマー設定）は端末内にのみ保存されます。</p>
+      <p style="margin-top:8px;">データはアカウントを削除するまで保持されます。設定画面の「アカウントとデータを削除」からすべてのデータを削除できます。</p>
+    </div>
+
+    <div class="privacy-block">
+      <h3>ユーザーの権利</h3>
+      <p>本アプリをご利用の方は、以下の権利を有します：</p>
+      <ul>
+        <li>保存されたデータの確認（アプリ内の履歴・ルーティン画面）</li>
+        <li>個別記録の編集・削除（アプリ内の履歴編集機能）</li>
+        <li>全データの一括削除（設定 → アカウントとデータを削除）</li>
+        <li>アカウント連携の解除（Googleアカウントの設定から本アプリへのアクセスを取り消し）</li>
+      </ul>
+    </div>
+
+    <div class="privacy-block">
+      <h3>子供のプライバシー</h3>
+      <p>本アプリは13歳未満の児童を対象としておらず、意図的に13歳未満の個人情報を収集することはありません。</p>
+    </div>
+
+    <div class="privacy-block">
+      <h3>ポリシーの変更</h3>
+      <p>本プライバシーポリシーは予告なく変更される場合があります。変更後も本アプリをご利用の場合は、変更後のポリシーに同意したものとみなします。最新のポリシーは常に本ページに掲載されます。</p>
+    </div>
+
+    <div class="privacy-block">
+      <h3>お問い合わせ</h3>
+      <p>プライバシーポリシーに関するご質問は、<a href="#contact">お問い合わせフォーム</a>または <a href="mailto:takenokoha@gmail.com">takenokoha@gmail.com</a> までご連絡ください。</p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Contact -->
+  <section id="contact">
+    <p class="section-label">Contact</p>
+    <h2>お問い合わせ</h2>
+    <p class="contact-desc">
+      バグ報告・機能リクエスト・その他のご質問はこちらからお送りください。
+    </p>
+
+    <div class="form-wrap">
+      <!--
+        【設定手順】
+        1. https://forms.google.com でフォームを作成
+        2. 送信ボタン → リンクタブ → 埋め込み HTML をコピー
+        3. 下の <iframe> のコメントを外し、src に取得した URL を貼り付け
+        4. form-placeholder の div を削除
+
+        例:
+        <iframe
+          src="https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform?embedded=true"
+          width="100%"
+          height="600"
+          frameborder="0"
+          marginheight="0"
+          marginwidth="0">
+          読み込んでいます…
+        </iframe>
+      -->
+
+      <!-- Google フォーム設定前の仮表示 -->
+      <div class="form-placeholder">
+        <p>// GOOGLE FORM EMBED</p>
+        <a href="mailto:takenokoha@gmail.com">takenokoha@gmail.com へメール</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p class="footer-logo">GYMLOG</p>
+    <ul class="footer-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#privacy">Privacy Policy</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <p class="footer-copy">© 2026 GymLog. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // スクロール進捗バー
+    window.addEventListener('scroll', () => {
+      const el = document.getElementById('scrollLine');
+      const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight) * 100;
+      el.style.width = Math.min(pct, 100) + '%';
+    });
+  </script>
+
+</body>
+</html>

@@ -76,6 +76,69 @@ class _MenuScreenState extends State<MenuScreen> {
     ));
   }
 
+  String _fmtPreset(int secs) {
+    final m = secs ~/ 60;
+    final s = secs % 60;
+    if (m == 0) return '${s}s';
+    if (s == 0) return '${m}m';
+    return '${m}m${s}s';
+  }
+
+  Future<void> _showIntervalDefaultPicker() async {
+    final lp = context.read<LocaleProvider>();
+    final s = lp.s;
+    const presets = [30, 60, 90, 120, 150, 180];
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          final current = context.read<LocaleProvider>().intervalDefault;
+          return AlertDialog(
+            backgroundColor: kSurface,
+            title: Text(s.intervalDefault,
+                style: const TextStyle(
+                    color: kText, fontSize: 14, letterSpacing: 1)),
+            content: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: presets.map((p) {
+                final selected = current == p;
+                final label = _fmtPreset(p);
+                return GestureDetector(
+                  onTap: () async {
+                    await lp.setIntervalDefault(p);
+                    setDlg(() {});
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 100),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: selected ? kRed : Colors.transparent,
+                      border: Border.all(
+                          color: selected ? kRed : kBorderDim),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text(label,
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: selected ? Colors.white : kTextMuted,
+                            letterSpacing: 1)),
+                  ),
+                );
+              }).toList(),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(s.done)),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _delete(MenuModel m) async {
     final s = context.read<LocaleProvider>().s;
     final confirm = await showDialog<bool>(
@@ -109,7 +172,9 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   Widget _buildList() {
-    final s = context.watch<LocaleProvider>().s;
+    final lp = context.watch<LocaleProvider>();
+    final s = lp.s;
+    final intervalSecs = lp.intervalDefault;
     return StreamBuilder<List<MenuModel>>(
       stream: _fs.menusStream(),
       builder: (ctx, snap) {
@@ -131,6 +196,41 @@ class _MenuScreenState extends State<MenuScreen> {
                       color: kTextDim,
                       height: 1.6,
                       letterSpacing: 0.3)),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _showIntervalDefaultPicker,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  border: Border.all(color: kBorder),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.timer_outlined,
+                      color: kTextDim, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(s.intervalDefault,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            color: kText,
+                            letterSpacing: 0.5)),
+                  ),
+                  Text(_fmtPreset(intervalSecs),
+                      style: const TextStyle(
+                          fontSize: 16,
+                          color: kRed,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right,
+                      color: kBorderDim, size: 18),
+                ]),
+              ),
             ),
             const SizedBox(height: 12),
             Row(

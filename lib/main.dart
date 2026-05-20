@@ -2,28 +2,30 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
-import 'l10n/strings.dart';
 import 'providers/locale_provider.dart';
 import 'screens/workout_screen.dart';
-import 'screens/timer_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/menu_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/auth_service.dart';
-import 'services/firestore_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/banner_ad_widget.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await MobileAds.instance.initialize();
 
   final localeProvider = LocaleProvider();
   await localeProvider.load();
+
+  FlutterNativeSplash.remove();
 
   runApp(
     ChangeNotifierProvider.value(
@@ -213,116 +215,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
-  final _auth = AuthService();
-  final _fs = FirestoreService();
-
-  Future<void> _showAccountMenu(AppStrings s) async {
-    final isAnon = _auth.isAnonymous;
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: kSurface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
-      builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const SizedBox(height: 8),
-          Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: kBorderDim,
-                  borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 8),
-          if (isAnon)
-            _BottomSheetTile(
-              icon: Icons.link,
-              label: s.linkGoogle,
-              subtitle: s.linkGoogleSub,
-              onTap: () async {
-                Navigator.pop(ctx);
-                await _linkWithGoogle(s);
-              },
-            )
-          else
-            _BottomSheetTile(
-              icon: Icons.logout,
-              label: s.logout,
-              onTap: () {
-                Navigator.pop(ctx);
-                _auth.signOut();
-              },
-            ),
-          const Divider(color: kBorder, height: 1),
-          _BottomSheetTile(
-            icon: Icons.delete_forever,
-            label: s.deleteAccount,
-            subtitle: s.deleteAccountSub,
-            color: kRed,
-            onTap: () {
-              Navigator.pop(ctx);
-              _confirmDelete(s);
-            },
-          ),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
-  }
-
-  Future<void> _linkWithGoogle(AppStrings s) async {
-    try {
-      await _auth.linkWithGoogle();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(s.linkedGoogle), backgroundColor: kRed));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${s.linkGoogle}: $e'), backgroundColor: kRed));
-      }
-    }
-  }
-
-  void _confirmDelete(AppStrings s) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: Text(s.deleteAccountTitle,
-            style: const TextStyle(color: kText)),
-        content: Text(s.deleteAccountBody,
-            style: const TextStyle(
-                color: kTextDim, fontSize: 13, height: 1.6)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: Text(s.cancel)),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _deleteAccount(s);
-            },
-            style: TextButton.styleFrom(foregroundColor: kRed),
-            child: Text(s.delete),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deleteAccount(AppStrings s) async {
-    try {
-      await _fs.deleteAllUserData();
-      await _auth.deleteAccount();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(s.deleteFailed),
-            backgroundColor: kRed,
-            duration: const Duration(seconds: 4)));
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (isAnon)
             Center(
               child: Container(
-                margin: const EdgeInsets.only(right: 4),
+                margin: const EdgeInsets.only(right: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                     border: Border.all(color: kBorderDim),
@@ -355,11 +247,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 9, color: kTextMuted, letterSpacing: 2)),
               ),
             ),
-          // アカウントメニュー
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: kTextDim, size: 20),
-            onPressed: () => _showAccountMenu(s),
-          ),
         ],
       ),
       body: Column(children: [
@@ -368,7 +255,6 @@ class _HomeScreenState extends State<HomeScreen> {
             index: _tab,
             children: [
               WorkoutScreen(onTabChange: (t) => setState(() => _tab = t)),
-              const TimerScreen(),
               const HistoryScreen(),
               const MenuScreen(),
               const SettingsScreen(),
@@ -384,8 +270,6 @@ class _HomeScreenState extends State<HomeScreen> {
         items: [
           BottomNavigationBarItem(
               icon: const Icon(Icons.fitness_center), label: s.tabToday),
-          BottomNavigationBarItem(
-              icon: const Icon(Icons.timer), label: s.tabTimer),
           BottomNavigationBarItem(
               icon: const Icon(Icons.history), label: s.tabHistory),
           BottomNavigationBarItem(
@@ -430,31 +314,3 @@ class _LangBtn extends StatelessWidget {
   }
 }
 
-class _BottomSheetTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String? subtitle;
-  final Color? color;
-  final VoidCallback onTap;
-  const _BottomSheetTile(
-      {required this.icon,
-      required this.label,
-      required this.onTap,
-      this.subtitle,
-      this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = color ?? kText;
-    return ListTile(
-      leading: Icon(icon, color: c, size: 20),
-      title: Text(label,
-          style: TextStyle(color: c, fontSize: 14, letterSpacing: 1)),
-      subtitle: subtitle != null
-          ? Text(subtitle!,
-              style: const TextStyle(color: kTextMuted, fontSize: 11))
-          : null,
-      onTap: onTap,
-    );
-  }
-}
