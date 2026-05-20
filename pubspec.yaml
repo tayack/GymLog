@@ -1,0 +1,48 @@
+name: gymlog
+description: "GymLog - 筋トレ記録アプリ"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.4
+  cloud_firestore: ^5.6.9
+  google_sign_in: ^6.2.2
+
+  # Share
+  share_plus: ^10.1.4
+
+  # Vibration / notifications
+  vibration: ^2.0.0
+  flutter_local_notifications: ^18.0.1
+
+  # AdMob
+  google_mobile_ads: ^5.3.0
+
+  # Persistence for settings
+  shared_preferences: ^2.3.2
+
+  # State management
+  provider: ^6.1.2
+
+  # Localization / date formatting
+  intl: ^0.20.2
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
