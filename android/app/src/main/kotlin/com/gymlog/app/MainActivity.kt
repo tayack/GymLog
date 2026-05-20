@@ -1,4 +1,4 @@
-package com.tayack.gymlog
+package com.gymlog.app
 
 import io.flutter.embedding.android.FlutterActivity
 
