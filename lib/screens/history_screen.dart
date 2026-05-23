@@ -370,7 +370,9 @@ class _WorkoutEditPageState extends State<_WorkoutEditPage> {
       ),
     );
     if (confirm == true && widget.workout.id != null && mounted) {
+      final exerciseNames = widget.workout.sets.map((ex) => ex.exercise).toList();
       await _fs.deleteWorkout(widget.workout.id!);
+      await _fs.recalcPRsForExercises(exerciseNames);
       if (mounted) Navigator.pop(context);
     }
   }

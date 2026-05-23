@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +13,7 @@ import '../models/workout_model.dart';
 import '../providers/locale_provider.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/banner_ad_widget.dart';
 import '../widgets/wheel_picker.dart';
 
 class WorkoutScreen extends StatefulWidget {
@@ -133,7 +135,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         _sets[exIdx].entries[entryIdx] = e.copyWith(weight: weight, reps: reps);
       });
 
-  Future<void> _saveWorkout() async {
+  Future<Map<String, SetEntry>> _saveWorkout() async {
     setState(() => _saving = true);
     final workout = WorkoutModel(
       date: DateTime.now(),
@@ -146,18 +148,93 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           .where((ex) => ex.entries.isNotEmpty)
           .toList(),
     );
-    await _fs.saveWorkout(workout);
-    setState(() { _saving = false; _selectedMenu = null; _sets = []; });
+    final newPRs = await _fs.saveWorkout(workout);
+    setState(() => _saving = false);
+    return newPRs;
+  }
+
+  void _clearWorkout() => setState(() { _selectedMenu = null; _sets = []; });
+
+  // PR達成時の演出 + ルーティン更新確認ダイアログ
+  Future<void> _showPrAndRoutineDialog(
+      Map<String, SetEntry> newPRs, MenuModel? menu) async {
+    if (!mounted || newPRs.isEmpty) return;
+    final s = _s;
+
+    final prLines = newPRs.entries.map((e) {
+      final w = e.value.weight % 1 == 0
+          ? '${e.value.weight.toInt()}'
+          : '${e.value.weight}';
+      return '${e.key}  ${w}kg × ${e.value.reps}rep';
+    }).join('\n');
+
+    final hasUpdatableRoutine = menu?.id != null &&
+        menu!.exercises.any((ex) => newPRs.containsKey(ex.name));
+
+    if (hasUpdatableRoutine) {
+      final update = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: kSurface,
+          title: Text(s.prAchievedTitle,
+              style: const TextStyle(color: kText, fontSize: 18)),
+          content: Text(
+            '$prLines\n\n${s.updateRoutineBody(menu.name)}',
+            style: const TextStyle(color: kTextDim, fontSize: 13, height: 1.6),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(s.cancel)),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(foregroundColor: kRed),
+              child: Text(s.updateRoutine),
+            ),
+          ],
+        ),
+      );
+      if (update == true && mounted) {
+        final updated = menu.copyWith(
+          exercises: menu.exercises.map((ex) {
+            final pr = newPRs[ex.name];
+            return pr == null ? ex : ex.copyWith(weight: pr.weight, reps: pr.reps);
+          }).toList(),
+        );
+        await _fs.saveMenu(updated);
+      }
+    } else {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: kSurface,
+          title: Text(s.prAchievedTitle,
+              style: const TextStyle(color: kText, fontSize: 18)),
+          content: Text(prLines,
+              style: const TextStyle(color: kTextDim, fontSize: 13, height: 1.6)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: TextButton.styleFrom(foregroundColor: kRed),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> _finish() async {
-    await _saveWorkout();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_s.workoutSaved), backgroundColor: kRed,
-          duration: const Duration(seconds: 2)));
-      widget.onTabChange(1);
-    }
+    final menu = _selectedMenu;
+    final newPRs = await _saveWorkout();
+    _clearWorkout();
+    if (!mounted) return;
+    await _showPrAndRoutineDialog(newPRs, menu);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_s.workoutSaved), backgroundColor: kRed,
+        duration: const Duration(seconds: 2)));
+    widget.onTabChange(1);
   }
 
   Future<void> _showCompletionFlow() async {
@@ -185,7 +262,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
     if (confirm != true || !mounted) return;
     final shareText = _buildShareText();
-    await _saveWorkout();
+    final menu = _selectedMenu;
+    final newPRs = await _saveWorkout();
+    _clearWorkout();
+    if (!mounted) return;
+    await _showPrAndRoutineDialog(newPRs, menu);
     if (!mounted) return;
     final doShare = await showDialog<bool>(
       context: context,
@@ -690,24 +771,27 @@ class _IntervalTimerSheetState extends State<_IntervalTimerSheet> {
   }
 
   Future<void> _onComplete() async {
-    Vibration.vibrate(pattern: [0, 400, 100, 400]);
+    final hasVib = await Vibration.hasVibrator();
+    if (hasVib == true) {
+      await Vibration.vibrate(pattern: [0, 500, 150, 500, 150, 800]);
+    }
     await _notif.show(
       1,
       'GYMLOG',
       widget.notifBody,
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'timer_channel',
+          'timer_channel_v2',
           widget.notifChannelName,
           channelDescription: widget.notifChannelDesc,
           importance: Importance.high,
           priority: Priority.high,
-          // public visibility ensures wearables (WearOS / Fitbit / Galaxy Watch)
-          // receive the mirrored notification via Android notification bridging
           visibility: NotificationVisibility.public,
           enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 500, 150, 500, 150, 800]),
           playSound: true,
           ticker: widget.notifBody,
+          category: AndroidNotificationCategory.alarm,
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
@@ -753,17 +837,17 @@ class _IntervalTimerSheetState extends State<_IntervalTimerSheet> {
                 style: const TextStyle(
                     fontSize: 10, color: kTextMuted, letterSpacing: 2),
                 textAlign: TextAlign.center),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             SizedBox(
-              width: 130,
-              height: 130,
+              width: 170,
+              height: 170,
               child: Stack(alignment: Alignment.center, children: [
                 SizedBox(
-                  width: 130,
-                  height: 130,
+                  width: 170,
+                  height: 170,
                   child: CircularProgressIndicator(
                     value: progress,
-                    strokeWidth: 7,
+                    strokeWidth: 8,
                     backgroundColor: const Color(0xFF1A1A1F),
                     valueColor: AlwaysStoppedAnimation(
                         _done ? const Color(0xFF444444) : kRed),
@@ -772,7 +856,7 @@ class _IntervalTimerSheetState extends State<_IntervalTimerSheet> {
                 Text(
                   _fmt(_remaining),
                   style: TextStyle(
-                      fontSize: 32,
+                      fontSize: 40,
                       fontWeight: FontWeight.bold,
                       color: _done ? kTextDim : kText,
                       letterSpacing: 3),
@@ -814,18 +898,23 @@ class _IntervalTimerSheetState extends State<_IntervalTimerSheet> {
                 style: const TextStyle(
                     fontSize: 9, color: kTextMuted, letterSpacing: 0.5),
                 textAlign: TextAlign.center),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             TextButton(
               onPressed: () => Navigator.pop(context),
               style: TextButton.styleFrom(
-                foregroundColor: kTextMuted,
-                minimumSize: const Size(double.infinity, 40),
+                foregroundColor: _done ? kRed : kTextMuted,
+                minimumSize: const Size(double.infinity, 52),
+                backgroundColor: const Color(0xFF1A1A1F),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
               child: Text(
                 _done ? 'OK' : 'SKIP',
-                style: const TextStyle(fontSize: 11, letterSpacing: 2),
+                style: const TextStyle(fontSize: 14, letterSpacing: 3),
               ),
             ),
+            const SizedBox(height: 16),
+            const Center(child: BannerAdWidget()),
           ],
         ),
       ),

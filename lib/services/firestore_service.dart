@@ -49,7 +49,9 @@ class FirestoreService {
         },
       );
 
-  Future<void> _updatePRsForWorkout(WorkoutModel workout) async {
+  // 返り値: 既存PRを上回った種目名 → 新記録エントリ のMap
+  Future<Map<String, SetEntry>> _updatePRsForWorkout(WorkoutModel workout) async {
+    final newPRs = <String, SetEntry>{};
     for (final ex in workout.sets) {
       if (ex.entries.isEmpty) continue;
       final best = ex.entries.reduce((a, b) =>
@@ -66,15 +68,44 @@ class FirestoreService {
         final r = (data['reps'] as num).toInt();
         if (best.weight > w || (best.weight == w && best.reps > r)) {
           await prRef.set({'weight': best.weight, 'reps': best.reps});
+          newPRs[ex.exercise] = best;
         }
+      }
+    }
+    return newPRs;
+  }
+
+  // 削除後にPRを全ワークアウトから再計算する
+  Future<void> recalcPRsForExercises(List<String> exerciseNames) async {
+    final snap = await _workouts.get();
+    final workouts = snap.docs.map((d) => WorkoutModel.fromDoc(d)).toList();
+    for (final name in exerciseNames) {
+      SetEntry? best;
+      for (final w in workouts) {
+        for (final ex in w.sets) {
+          if (ex.exercise != name) continue;
+          for (final entry in ex.entries) {
+            if (best == null ||
+                entry.weight > best.weight ||
+                (entry.weight == best.weight && entry.reps > best.reps)) {
+              best = entry;
+            }
+          }
+        }
+      }
+      final prRef = _prs.doc(name);
+      if (best == null) {
+        await prRef.delete();
+      } else {
+        await prRef.set({'weight': best.weight, 'reps': best.reps});
       }
     }
   }
 
   // --- Workouts ---
-  Future<void> saveWorkout(WorkoutModel workout) async {
+  Future<Map<String, SetEntry>> saveWorkout(WorkoutModel workout) async {
     await _workouts.add(workout.toMap());
-    await _updatePRsForWorkout(workout);
+    return _updatePRsForWorkout(workout);
   }
 
   Future<void> updateWorkout(WorkoutModel workout) =>

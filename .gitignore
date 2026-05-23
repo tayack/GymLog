@@ -52,3 +52,9 @@ lib/firebase_options.dart
 *.jks
 *.keystore
 key.properties
+
+# Claude Code local settings
+.claude/
+
+# Flutter DevTools
+devtools_options.yaml

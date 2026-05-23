@@ -534,6 +534,7 @@
       .privacy-block { padding: 20px 18px; }
     }
   </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -543,6 +544,7 @@
   <nav>
     <a class="nav-logo" href="#hero">GYMLOG</a>
     <ul class="nav-links">
+      <li><a href="#training-dashboard">Timer</a></li>
       <li><a href="#features">Features</a></li>
       <li><a href="#privacy">Privacy</a></li>
       <li><a href="#contact">Contact</a></li>
@@ -606,6 +608,116 @@
           <div class="phone-nav-item">設定</div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section id="training-dashboard">
+    <div class="dashboard-header">
+      <p class="dashboard-eyebrow">Web Timer &amp; Log</p>
+      <h2 class="dashboard-title">インターバルタイマーと保存確認</h2>
+      <p class="dashboard-copy">
+        スリープ中も継続できるWeb Workerベースのタイマーと、保存前の確認ダイアログを備えた記録画面です。日々のトレーニングを見やすく、確実に残せます。
+      </p>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="dashboard-card timer-card">
+        <p class="timer-label">📱 背景タイマー</p>
+        <div class="timer-display" id="timerDisplay">01:30</div>
+        <div class="timer-meta">
+          <span class="timer-pill">Web Worker 継続</span>
+          <span class="timer-pill">30秒前予告</span>
+          <span class="timer-pill">終了通知</span>
+        </div>
+        <div class="timer-actions">
+          <button type="button" class="btn btn-primary" id="startTimer">開始</button>
+          <button type="button" class="btn btn-secondary" id="resetTimer">リセット</button>
+        </div>
+        <div class="status-banner" id="timerStatus">
+          タイマーを開始すると、画面を閉じても裏でカウントダウンし、30秒前と終了時の通知を送信します。
+        </div>
+      </div>
+
+      <div class="dashboard-card">
+        <h2>設定</h2>
+        <form id="routineForm" class="form-grid">
+          <div class="field-row">
+            <label for="durationInput">インターバル秒数</label>
+            <input id="durationInput" type="number" min="30" step="30" value="90">
+            <p class="field-hint">30〜300秒の範囲を指定できます。</p>
+          </div>
+
+          <div class="field-row">
+            <label for="routineName">ルーティン名</label>
+            <input id="routineName" type="text" placeholder="例: フルボディA">
+          </div>
+
+          <div class="field-row">
+            <label for="exerciseName">種目名</label>
+            <input id="exerciseName" type="text" placeholder="例: ベンチプレス">
+          </div>
+
+          <div class="field-row">
+            <label for="weightInput">重量（kg）</label>
+            <input id="weightInput" type="number" min="0" step="0.5" placeholder="例: 80">
+            <p class="field-hint">最高記録の判定に使います。未入力でも保存できます。</p>
+          </div>
+
+          <div class="field-row">
+            <label for="repsInput">回数</label>
+            <input id="repsInput" type="number" min="0" step="1" placeholder="例: 8">
+          </div>
+
+          <div class="field-row">
+            <label for="setsInput">セット数</label>
+            <input id="setsInput" type="number" min="1" step="1" placeholder="例: 3">
+          </div>
+
+          <div class="field-row">
+            <label for="notes">メモ</label>
+            <textarea id="notes" placeholder="セット内容や疲労感を記録"></textarea>
+          </div>
+
+          <div class="field-row">
+            <label for="webhookUrl">Webhook URL（任意）</label>
+            <input id="webhookUrl" type="url" placeholder="https://example.com/webhook">
+            <p class="field-hint">通知を外部へ転送したい場合に使用します。</p>
+          </div>
+
+          <div>
+            <h3>チェック項目</h3>
+            <div class="check-list">
+              <label class="check-item">
+                <input type="checkbox" data-label="ウォームアップ完了">
+                <span><strong>ウォームアップ完了</strong><br>準備運動と体温上昇を確認しました。</span>
+              </label>
+              <label class="check-item">
+                <input type="checkbox" data-label="フォーム確認完了">
+                <span><strong>フォーム確認完了</strong><br>フォームと安全性を確認しました。</span>
+              </label>
+              <label class="check-item">
+                <input type="checkbox" data-label="疲労チェック完了">
+                <span><strong>疲労チェック完了</strong><br>負荷と回復のタイミングを確認しました。</span>
+              </label>
+              <label class="check-item">
+                <input type="checkbox" data-label="次セット準備完了">
+                <span><strong>次セット準備完了</strong><br>次のセットに進む準備が整いました。</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="summary-box" id="summaryText">
+            チェック完了: <strong>0/4</strong> · 保存前に必ず確認を行います。
+          </div>
+
+          <button type="button" class="btn btn-primary" id="saveLog">保存する</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="dashboard-card history-card" style="margin-top: 20px;">
+      <h2>履歴ログ</h2>
+      <div id="historyList" class="history-list"></div>
     </div>
   </section>
 
@@ -790,6 +902,14 @@
     <p class="footer-copy">© 2026 GymLog. All rights reserved.</p>
   </footer>
 
+  <div class="ad-banner" aria-label="広告枠">
+    <div class="ad-banner-inner">
+      <p class="ad-banner-label">広告枠</p>
+      <p class="ad-banner-copy">Google AdSense / スポンサー枠としての配置候補です。今後のマネタイズに備えて固定表示しています。</p>
+    </div>
+  </div>
+
+  <script src="app.js" defer></script>
   <script>
     // スクロール進捗バー
     window.addEventListener('scroll', () => {

@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:vibration/vibration.dart';
 import '../providers/locale_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/banner_ad_widget.dart';
 
 class TimerScreen extends StatefulWidget {
   const TimerScreen({super.key});
@@ -104,11 +107,15 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
       _notifBody,
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'timer_channel',
+          'timer_channel_v2',
           _notifChannelName,
           channelDescription: _notifChannelDesc,
           importance: Importance.high,
           priority: Priority.high,
+          visibility: NotificationVisibility.public,
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 500, 150, 500, 150, 800]),
+          category: AndroidNotificationCategory.alarm,
         ),
         iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
       ),
@@ -227,6 +234,8 @@ class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin
             Text(s.timerNote,
                 style: const TextStyle(
                     fontSize: 10, color: kTextMuted, letterSpacing: 1.5)),
+            const SizedBox(height: 24),
+            const Center(child: BannerAdWidget()),
           ],
         ),
       ),

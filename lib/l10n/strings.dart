@@ -114,4 +114,11 @@ class AppStrings {
   String get notifTimerBody   => _ja ? 'インターバル終了！次のセットへ' : 'Interval done! Next set.';
   String get notifChannelName => _ja ? 'タイマー通知' : 'Timer Alerts';
   String get notifChannelDesc => _ja ? 'インターバルタイマー終了通知' : 'Interval timer completion';
+
+  // PR celebration & routine update
+  String get prAchievedTitle => _ja ? '🎉 最高記録達成！' : '🎉 New Personal Record!';
+  String updateRoutineBody(String menuName) => _ja
+      ? 'ルーティン「$menuName」の重量を今回の記録に更新しますか？'
+      : 'Update weights in routine "$menuName" to today\'s records?';
+  String get updateRoutine => _ja ? '更新する' : 'Update';
 }
