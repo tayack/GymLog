@@ -4,7 +4,6 @@ const BASELINES_KEY = 'gymlog-web-routine-baselines';
 
 const defaults = {
   duration: 90,
-  webhookUrl: '',
 };
 
 const ui = {
@@ -19,7 +18,6 @@ const ui = {
   repsInput: document.getElementById('repsInput'),
   setsInput: document.getElementById('setsInput'),
   notes: document.getElementById('notes'),
-  webhookUrl: document.getElementById('webhookUrl'),
   saveButton: document.getElementById('saveLog'),
   historyList: document.getElementById('historyList'),
   summaryText: document.getElementById('summaryText'),
@@ -56,7 +54,6 @@ function normalizeRoutineKey(routineName, exerciseName) {
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-    ui.webhookUrl.value = saved.webhookUrl || defaults.webhookUrl;
     ui.durationInput.value = Number(saved.duration) || defaults.duration;
   } catch (error) {
     ui.durationInput.value = defaults.duration;
@@ -66,10 +63,7 @@ function loadSettings() {
 function saveSettings() {
   localStorage.setItem(
     SETTINGS_KEY,
-    JSON.stringify({
-      duration: Number(ui.durationInput.value) || defaults.duration,
-      webhookUrl: ui.webhookUrl.value.trim(),
-    })
+    JSON.stringify({ duration: Number(ui.durationInput.value) || defaults.duration })
   );
 }
 
@@ -200,31 +194,9 @@ function requestNotificationPermission() {
 }
 
 function sendNotification(title, body) {
-  const payload = {
-    title,
-    body,
-    source: 'GymLog Web Timer',
-    timestamp: new Date().toISOString(),
-  };
-
   if ('Notification' in window && Notification.permission === 'granted') {
     new Notification(title, { body, tag: 'gymlog-timer' });
   }
-
-  const webhookUrl = ui.webhookUrl.value.trim();
-  if (!webhookUrl) {
-    return;
-  }
-
-  fetch(webhookUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  }).catch((error) => {
-    console.warn('Webhook notification failed', error);
-  });
 }
 
 function getRoutineBaseline(routineName, exerciseName) {
@@ -377,8 +349,6 @@ function bindEvents() {
     saveSettings();
     updateTimerDisplay(Number(ui.durationInput.value) || defaults.duration);
   });
-
-  ui.webhookUrl.addEventListener('change', saveSettings);
 
   ui.form.addEventListener('input', () => {
     lastConfirmPrompt = false;
