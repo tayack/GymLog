@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../l10n/exercises.dart';
 import '../l10n/strings.dart';
 import '../models/workout_model.dart';
 import '../providers/locale_provider.dart';
@@ -271,6 +272,7 @@ class _WorkoutEditPage extends StatefulWidget {
 
 class _WorkoutEditPageState extends State<_WorkoutEditPage> {
   final _fs = FirestoreService();
+  final _addCtrl = TextEditingController();
   late List<ExerciseSets> _sets;
   bool _saving = false;
 
@@ -290,6 +292,12 @@ class _WorkoutEditPageState extends State<_WorkoutEditPage> {
         .toList();
   }
 
+  @override
+  void dispose() {
+    _addCtrl.dispose();
+    super.dispose();
+  }
+
   void _updateEntry(int exIdx, int entryIdx, {double? weight, int? reps}) {
     setState(() {
       final e = _sets[exIdx].entries[entryIdx];
@@ -301,6 +309,25 @@ class _WorkoutEditPageState extends State<_WorkoutEditPage> {
     setState(() {
       _sets[exIdx].entries.removeAt(entryIdx);
       if (_sets[exIdx].entries.isEmpty) _sets.removeAt(exIdx);
+    });
+  }
+
+  void _addSet(int exIdx) {
+    setState(() {
+      final last = _sets[exIdx].entries.last;
+      _sets[exIdx].entries.add(SetEntry(weight: last.weight, reps: last.reps));
+    });
+  }
+
+  void _addExercise(String name) {
+    if (name.trim().isEmpty) return;
+    if (_sets.any((ex) => ex.exercise == name.trim())) return;
+    setState(() {
+      _sets.add(ExerciseSets(
+        exercise: name.trim(),
+        entries: [SetEntry(weight: 20, reps: 10)],
+      ));
+      _addCtrl.clear();
     });
   }
 
@@ -423,7 +450,68 @@ class _WorkoutEditPageState extends State<_WorkoutEditPage> {
                 exIdx: e.key,
                 onUpdateEntry: _updateEntry,
                 onRemoveEntry: _removeEntry,
+                onAddSet: _addSet,
               )),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: RawAutocomplete<String>(
+                textEditingController: _addCtrl,
+                focusNode: FocusNode(),
+                optionsBuilder: (v) {
+                  if (v.text.isEmpty) return const [];
+                  final exercises =
+                      getExercises(context.read<LocaleProvider>().s.languageCode);
+                  final q = normalizeForSearch(v.text);
+                  return exercises.where((e) =>
+                      normalizeForSearch(e).contains(q) &&
+                      !_sets.any((s) => s.exercise == e));
+                },
+                onSelected: _addExercise,
+                fieldViewBuilder: (ctx, ctrl, fn, _) => TextField(
+                  controller: ctrl,
+                  focusNode: fn,
+                  style: const TextStyle(color: kText, fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: s.addExercisePlaceholder,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                  ),
+                  onSubmitted: _addExercise,
+                ),
+                optionsViewBuilder: (ctx, onSel, opts) => Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    color: kSurface,
+                    elevation: 4,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: ListView(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        children: opts
+                            .map((o) => ListTile(
+                                  dense: true,
+                                  title: Text(o,
+                                      style: const TextStyle(
+                                          color: kText, fontSize: 12)),
+                                  onTap: () => onSel(o),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => _addExercise(_addCtrl.text),
+              style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(44, 44), padding: EdgeInsets.zero),
+              child: const Icon(Icons.add),
+            ),
+          ]),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -431,8 +519,7 @@ class _WorkoutEditPageState extends State<_WorkoutEditPage> {
               onPressed: _confirmDelete,
               icon: const Icon(Icons.delete_forever, size: 16),
               label: Text(s.deleteWorkout,
-                  style: const TextStyle(
-                      fontSize: 12, letterSpacing: 1.5)),
+                  style: const TextStyle(fontSize: 12, letterSpacing: 1.5)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: kRed,
                 side: const BorderSide(color: kRed),
@@ -453,6 +540,7 @@ class _EditExerciseCard extends StatelessWidget {
   final int exIdx;
   final void Function(int, int, {double? weight, int? reps}) onUpdateEntry;
   final void Function(int, int) onRemoveEntry;
+  final void Function(int) onAddSet;
 
   const _EditExerciseCard({
     super.key,
@@ -460,6 +548,7 @@ class _EditExerciseCard extends StatelessWidget {
     required this.exIdx,
     required this.onUpdateEntry,
     required this.onRemoveEntry,
+    required this.onAddSet,
   });
 
   @override
@@ -544,6 +633,16 @@ class _EditExerciseCard extends StatelessWidget {
             ]),
           );
         }),
+        TextButton(
+          onPressed: () => onAddSet(exIdx),
+          style: TextButton.styleFrom(
+            foregroundColor: kTextMuted,
+            minimumSize: const Size(double.infinity, 36),
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          ),
+          child: Text(s.addSet,
+              style: const TextStyle(fontSize: 11, letterSpacing: 2)),
+        ),
       ]),
     );
   }
